@@ -10,6 +10,8 @@ body{margin:0 auto;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,
 h1{font-size:20px;margin:6px 0 12px}h2{font-size:15px;margin:16px 0 8px;color:var(--mut)}
 .g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+textarea{font:16px system-ui;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);width:100%;box-sizing:border-box;resize:vertical}
+.lg{font-size:11px;color:var(--mut);margin-top:3px}
 input,select{font:16px system-ui;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);width:100%;box-sizing:border-box}
 .tot{background:var(--acc);color:#fff;border-radius:12px;padding:12px;margin:14px 0;display:flex;justify-content:space-between;font-weight:600}
 .st{background:var(--card);border-radius:10px;padding:10px;margin-bottom:8px}
@@ -19,7 +21,19 @@ input,select{font:16px system-ui;padding:8px;border:1px solid var(--line);border
 .ps{display:none;font-size:13px;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}td,th{border:1px solid var(--line);padding:6px;text-align:left}table input{padding:5px;font-size:14px}th{background:var(--card)}
 .er{background:var(--card);border-radius:10px;padding:8px;margin-bottom:8px}.er .g{margin-top:6px}.bs{display:flex;gap:6px;margin-top:6px}.bs .bt{flex:1}.as{margin:0 0 8px;font-weight:600}
-@media print{.tabs,#calc .g,.no{display:none!important}.ps{display:block}body{background:#fff!important;color:#000!important}.tot{background:none;color:#000;border:1px solid #000}.st{background:none;border:1px solid #999;color:#000;break-inside:avoid}.t,.p{color:#000}}
+[hidden]{display:none!important}#gr{margin:8px 0;color:var(--fg)}#gr svg{width:100%;height:auto;display:block;background:var(--card);border-radius:10px}
+.fh{font-size:13px;font-weight:700;color:var(--acc);margin:14px 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}.mvs{font-size:12px;padding:6px}
+@page{size:A4;margin:8mm}
+@media print{html,body{background:#fff!important;color:#000!important}body{padding:0;max-width:none;font-size:9.5pt;line-height:1.2}:root{padding:0}
+h1{font-size:13pt;margin:0 0 3px}.tabs,#calc .g,.no{display:none!important}
+.ps{display:block;font-size:8.5pt;margin:0 0 3px;color:#000}
+.tot{background:none;color:#000;border:1px solid #000;border-radius:3px;padding:2px 6px;margin:0 0 4px;font-size:10pt}
+.st{background:none;border:0;border-bottom:1px solid #999;border-radius:0;color:#000;break-inside:avoid;margin:0;padding:2px 3px;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px}
+.st b{display:inline;flex:1 1 50%;font-size:9.5pt}
+.st .t{flex:0 0 auto;margin:0;gap:12px;font-size:9pt;color:#000}
+.st .p{flex:1 1 100%;margin:0;font-size:7.5pt;color:#000}
+.t,.p{color:#000}.lg{color:#000;font-size:7.5pt;margin:0}
+#gr{margin:2px 0 4px;color:#000}#gr svg{background:none;max-height:80mm;border:1px solid #999;border-radius:0}}
 </style></head><body>
 <h1>Dyeing Program Calculator</h1>
 <div class="tabs"><button id="t1" class="on" onclick="tab('calc')">Calc</button><button id="t2" onclick="tab('ed')">Edit</button><button id="t3" onclick="tab('sop')">SOP</button><button id="t4" onclick="tab('saved')">Saved</button><button onclick="window.print()">Print</button></div>
@@ -33,11 +47,17 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}td,th{bord
 <label>Steam-up rate °C/min (auto from grade)<input id="rate" type="number" step="0.1"></label>
 <label>Run time at dye temp (min)<input id="run" type="number" value="30"></label>
 <label>Dye temp °C<input id="tmax" type="number" value="105"></label>
+<label style="grid-column:1/-1">Process note<textarea id="pnote" rows="2" placeholder="Note for this process"></textarea></label>
+<label id="mgw" hidden>Migration grade °C/min<input id="mgr" type="number" step="0.1"></label>
+<label style="flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--fg)"><input type="checkbox" id="gon" checked style="width:auto">Show graph</label>
+<label>Graph style<select id="gst"><option value="s">Process sketch (like Unit 2)</option><option value="t">Time vs temp</option></select></label>
 </div>
 <div class="tot"><span>Total</span><span id="tot"></span></div>
 <div id="psum" class="ps"></div>
+<div id="pnp" class="ps" style="font-weight:600"></div>
+<div id="gr"></div>
 <div id="out"></div>
-<div class="no"><h2>Save this process</h2><div class="g"><input id="pname" placeholder="Process name"><button class="bt" onclick="psave()">Save</button></div></div>
+<div class="no"><h2>Save this process</h2><div class="g"><select id="pfolder"><option>Pretreatment &amp; enzyme</option><option selected>Dyeing</option><option>After treatment</option></select><input id="pname" placeholder="Process name"></div><button class="bt" style="width:100%;margin-top:8px" onclick="psave(false)">Save</button><button class="bt" style="width:100%;margin-top:6px" onclick="psave(true)">Save as…</button><div class="p" id="curl"></div></div>
 </div>
 
 <div id="ed" hidden>
@@ -92,28 +112,75 @@ function grade(){const f=$('fab').value,g=v('gsm');
  return 3}
 function tab(n){['calc','ed','sop','saved'].forEach((x,i)=>{$(x).hidden=x!=n;$('t'+(i+1)).className=x==n?'on':''})}
 function sv(re){try{localStorage.setItem('dyeSteps2',JSON.stringify(S))}catch(e){}if(re)edit();calc()}
+const lbIn=(i,s)=>`<label>Graph label above<input placeholder="auto from name" value="${esc(s.gt!==undefined?s.gt:'')}" oninput="S[${i}].gt=this.value;sv()"></label><label>Graph label below<input placeholder="auto" value="${esc(s.gb!==undefined?s.gb:'')}" oninput="S[${i}].gb=this.value;sv()"></label>`;
+const shSel=(i,s)=>`<label>Graph shape<select onchange="S[${i}].sh=this.value;sv()"><option value="">None</option><option value="R"${s.sh=='R'?' selected':''}>Rectangle (linear / recirculation)</option><option value="T"${s.sh=='T'?' selected':''}>Triangle (progressive)</option></select></label>`;
 function edit(){$('edl').innerHTML=S.map((s,i)=>{
  let f='';
- if(s.k=='fix')f=`<label>Minutes<input type="number" step="0.5" value="${s.m}" oninput="S[${i}].m=+this.value;sv()"></label>`;
+ if(s.k=='fix')f=`<label>Minutes<input type="number" step="0.5" value="${s.m}" oninput="S[${i}].m=+this.value;sv()"></label>`+shSel(i,s)+lbIn(i,s);
  else if(s.k=='cool')f=`<label>To °C<input type="number" value="${s.to}" oninput="S[${i}].to=+this.value;sv()"></label><label>Rate °C/min<input type="number" step="0.1" value="${s.r}" oninput="S[${i}].r=+this.value;sv()"></label><label>Extra min (sample)<input type="number" value="${s.x}" oninput="S[${i}].x=+this.value;sv()"></label>`;
- else if(s.k=='hold')f=`<label>Hold temp °C<input type="number" value="${s.h}" oninput="S[${i}].h=+this.value;sv()"></label><label>Minutes<input type="number" step="0.5" value="${s.m}" oninput="S[${i}].m=+this.value;sv()"></label>`;
+ else if(s.k=='hold')f=`<label>Hold temp °C<input type="number" value="${s.h}" oninput="S[${i}].h=+this.value;sv()"></label><label>Minutes<input type="number" step="0.5" value="${s.m}" oninput="S[${i}].m=+this.value;sv()"></label>`+shSel(i,s)+lbIn(i,s);
  else if(s.k=='temp')f=`<label>From °C<input type="number" value="${s.from}" oninput="S[${i}].from=+this.value;sv()"></label><label>To °C<input type="number" value="${s.to}" oninput="S[${i}].to=+this.value;sv()"></label><label>Rate °C/min<input type="number" step="0.1" value="${s.r}" oninput="S[${i}].r=+this.value;sv()"></label><label>Extra min<input type="number" value="${s.x}" oninput="S[${i}].x=+this.value;sv()"></label>`;
+ else if(s.k=='mig')f=`<label>From °C<input type="number" value="${s.from}" oninput="S[${i}].from=+this.value;sv()"></label><label>Migration °C<input type="number" value="${s.mx}" oninput="S[${i}].mx=+this.value;sv()"></label><label>Hold min<input type="number" step="0.5" value="${s.m}" oninput="S[${i}].m=+this.value;sv()"></label><label>Back to °C<input type="number" value="${s.to}" oninput="S[${i}].to=+this.value;sv()"></label><label>Grade ↑ °C/min<input type="number" step="0.1" value="${s.up}" oninput="S[${i}].up=+this.value;sv()"></label><label>Grade ↓ °C/min<input type="number" step="0.1" value="${s.dn}" oninput="S[${i}].dn=+this.value;sv()"></label>`;
  else f=`<div class="p">${s.k=='steam'?'Time = auto from grade rate':'Time = Run time on Calculator tab'}</div>`;
  return `${addSel(i-1)}<div class="er"><label>${i+1}. Step name<input value="${s.n.replace(/"/g,'&quot;')}" oninput="S[${i}].n=this.value;sv()"></label><div class="g">${f}</div><label style="margin-top:6px">Parallel note<input value="${(s.p||'').replace(/"/g,'&quot;')}" oninput="S[${i}].p=this.value;sv()"></label><div class="bs"><button class="bt" onclick="mv(${i},-1)">↑</button><button class="bt" onclick="mv(${i},1)">↓</button><button class="bt" onclick="S.splice(${i},1);sv(1)">✕</button></div></div>`}).join('')+addSel(S.length-1)}
 function mv(i,d){const j=i+d;if(j<0||j>=S.length)return;[S[i],S[j]]=[S[j],S[i]];sv(1)}
-const P=[{n:'Fill from PT',k:'fix',m:5,p:''},{n:'Fill',k:'fix',m:5,p:''},{n:'Inject',k:'fix',m:3,p:''},{n:'Dosing',k:'fix',m:5,p:''},{n:'Fabric load + temp control',k:'fix',m:10,p:''},{n:'Temp control',k:'temp',from:60,to:80,r:3,x:0,p:''},{n:'D/F (drain + fill)',k:'fix',m:5,p:''},{n:'Wash (normal hot)',k:'fix',m:10,p:''},{n:'Wash (block)',k:'fix',m:10,p:''},{n:'Wash (over flow)',k:'fix',m:10,p:''},{n:'Linear dosing',k:'fix',m:20,p:''},{n:'Recirculation',k:'fix',m:10,p:''},{n:'Migration at {H}°C',k:'hold',h:105,m:15,p:''},{n:'Progressive dosing',k:'fix',m:30,p:''},{n:'Run time / Hold time at {H}°C',k:'hold',h:105,m:30,p:''}];
+const P=[{n:'Fill from PT',k:'fix',m:5,p:''},{n:'Fill',k:'fix',m:5,p:''},{n:'Inject',k:'fix',m:3,p:''},{n:'Dosing',k:'fix',m:5,p:''},{n:'Fabric load + temp control',k:'fix',m:10,p:''},{n:'Temp control',k:'temp',from:60,to:80,r:3,x:0,p:''},{n:'D/F (drain + fill)',k:'fix',m:5,p:''},{n:'Wash (normal hot)',k:'fix',m:10,p:''},{n:'Wash (block)',k:'fix',m:10,p:''},{n:'Wash (over flow)',k:'fix',m:10,p:''},{n:'Linear dosing',k:'fix',m:20,p:''},{n:'Recirculation',k:'fix',m:10,p:''},{n:'Migration (with grade)',k:'mig',from:60,mx:90,m:20,up:1.5,dn:1.5,to:60,g:1,p:''},{n:'Migration at {H}°C',k:'hold',h:105,m:15,p:''},{n:'Progressive dosing',k:'fix',m:30,p:''},{n:'Run time / Hold time at {H}°C',k:'hold',h:105,m:30,p:''}];
+// ---- Dyeing process library (copied from Unit 2 Process Browser)
+const LG=(m,top,bot)=>({t:'G',m:m||'',top:top||'',bot:bot||''}),LR=(m,top,bot)=>({t:'R',m:m||'',top:top||'',bot:bot||''}),LT=(m,top,bot)=>({t:'T',m:m||'',top:top||'',bot:bot||''}),LM=(top,up,dn,t2)=>({t:'M',top,up,dn,t2}),LU=(top,up,t2)=>({t:'U',top,up,t2});
+const LP=(id,title,sub,t0,steps)=>({id,title,sub,t0,steps});
+const SODA='SODA (70% PROGRESSIVE)';
+const LIBD=[
+LP('01','ALL 60 TEMP DYEING PROCESS - 01','FOR ALL LIGHT + MEDIUM + SODA UPTO 8 GPL (BONE+SAND). FOR CVC S/J + FLEECE/TERRY 2 PART + 1 PART CRITICAL COLOUR (LIGHT)',60,[LG('3','LEVEL'),LR('20','COLOUR','LINEAR DOSSING'),LG('12'),LR('10','SALT','LINEAR DOSSING'),LG('15'),LT('45',SODA,'PROGRESSIVE')]),
+LP('02','ALL 60 TEMP DYEING PROCESS - 02','FOR ALL CRITICAL COLOUR (2 TIME SODA)',60,[LG('3'),LR('20','COLOUR','LINIAR'),LG('15'),LR('6+3+6','SALT','DOSSING'),LG('15'),LT('20','SODA 70% PROGRESSIVE','1g/l LINEAR'),LG('3'),LT('25','','REST')]),
+LP('03','ALL 65 TEMP DYEING PROCESS - 03','ALL BLACK COLOR PROCESS',65,[LG('3','LEVEL'),LR('REC 8','SALT','REC'),LG('10'),LR('20','COLOR','LINEAR DOSSING'),LG('15'),LT('40','Soda 70% Progressive','PROGRESSIVE')]),
+LP('04','ALL LIGHT TURQUOISE 80C-80C PROCESS - 04','',80,[LG('5'),LR('20','COLOUR','LINIAR'),LG('20'),LR('10+5+10','SALT (FRESH WATER)','DOSSING'),LG('20'),LT('20','SODA 70% PROGRESSIVE','1G/L'),LG('5'),LT('25','','REST')]),
+LP('05','VISCOSE / TENCEL / BAMBOO / SPECIAL FABRIC PROCESS - 05','SALT DOSSING (2 TIME)',60,[LG('10','LEVEL'),LR('30','COLOR','LINEAR'),LG('20'),LR('10','SALT = ½','LINEAR'),LG('5'),LR('10','SALT = ½','LINEAR'),LG('10'),LM('80 X 20’',1.5,1.5,60),LG('10'),LT('20','1ST SODA (1/10)','PROGRESSIVE'),LG('5'),LT('30','2ND SODA','')]),
+LP('06','ALL 60 (OCEAN / AM-RL / CORAFIX) TEMP DYEING PROCESS - 06','',60,[LG('5'),LR('20','COLOUR','LINIAR'),LG('15'),LR('5+5+5','SALT','DOSSING'),LG('15'),LT('20','SODA 70% PROGRESSIVE','1G/L'),LG('5'),LT('25','','REST')]),
+LP('07','MIGRATION PROCESS - 07','DEEP TURQUOISE 1.0 TO ABOVE & OCEAN/BLUE/NAVY. SALT 3-TIME DOSSING',80,[LG('5','LEVEL'),LR('25','COLOUR','LINEAR DOSSING'),LG('15'),LR('10+5+10+5+10','SALT (FRESH WATER) 3 TIME','LINEAR DOSSING'),LG('5'),LM('90 X 20’',1.5,1.5,80),LG('5'),LT('20','70% PROGRESSIVE','1G/L'),LG('10'),LT('30','','REST 80°C')]),
+LP('08','ALL 60-90-60 TEMP DYEING PROCESS - 08','DEEP TURQUOISE MIX OCEAN/NAVY COM, MIGRATION. SALT 2-TIME DOSSING',60,[LG('5','LEVEL'),LR('25','COLOUR','LINEAR DOSSING'),LG('15'),LR('10+5+10','SALT (FRESH WATER) 2 TIME','LINEAR DOSSING'),LG('5'),LM('90 X 15’',1.5,1.5,60),LG('5'),LT('20','70% PROGRESSIVE','1G/L'),LG('5'),LT('25','','REST 60°C')]),
+LP('09','COMBINATION MIGRATION PROCESS - 09','YELLOW DS + RED DS + NAVY BLUE KBF (60C-70-60C)',60,[LG('3','LEVEL','REC'),LR('REC-5','SALT','REC'),LG('10'),LR('20','COLOUR','LINIAR DOSSING'),LG('3'),LM('Migration 70°C X 20’',3,3,60),LG('3'),LR('20','1ST SODA','LINIAR 1g/l'),LG('3'),LT('25','2ND SODA','REST 60°C')]),
+LP('10','NEW DYEING PROCESS - 10','FOR HELIOTROPE COLOUR / PURPLE TYPE (LIGHT/DEEP)',40,[LG('5'),LR('20','COLOUR','LINIAR'),LG('15'),LR('10+3+10','SALT','DOSSING'),LG('10'),LU('1.0 GRADE',1.0,60),LG('10'),LT('25','SODA 70% PROGRESSIVE','1/20'),LG('5'),LT('30','','19/20')]),
+LP('11','ALL 65 TEMP MIXED ALKALI BLACK COLOR PROCESS - 11','',65,[LG('3','LEVEL'),LR('REC-8','SALT','RECIRCULATION'),LG('10'),LR('20','COLOUR','LINEAR DOSSING'),LG('15'),LR('20','SODA ASH','SODA'),LG('3'),LT('25','70% PROGRESSIVE','CAUSTIC PH CHECK')]),
+LP('12','ALL 60 TEMP DYEING PROCESS - 12','FOR (60/40) CVC S/J + LY + FLEECE/TERRY 2 PART + 1 PART CRITICAL COLOUR (DARK) + RED + CHARCOAL GREEN TYPE + ABOVE SHADE 3%',60,[LG('3','LEVEL'),LR('REC-08','SALT','RECIRCULATION'),LG('10'),LR('20','COLOR','LINEAR DOSSING'),LG('15'),LT('45',SODA,'PROGRESSIVE')]),
+LP('13','FOR NAVY NEW PROCESS - 13','',60,[LG('3','LEVELLING'),LR('REC-8','SALT','RECIRCULATION'),LG('10'),LR('20','COLOUR','LINIAR'),LG('15'),LR('20','SODA','LINIAR 2G/L'),LG('5'),LT('25','SODA 70% PROGRESSIVE','REST 60°C')])];
+const tc=s=>String(s||'').toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());
+function libSteps(p){let lv=p.t0;const out=[];const mins=m=>(String(m).match(/\d+(\.\d+)?/g)||[]).reduce((a,b)=>a+ +b,0);
+ const t2o=s=>(s.t2===''||s.t2==null)?lv:+s.t2;
+ p.steps.forEach(s=>{
+  if(s.t==='M'){const mm=/(\d+(?:\.\d+)?)\s*°?\s*C?\s*X\s*(\d+(?:\.\d+)?)/i.exec(s.top||'');const X=mm?+mm[1]:lv,hd=mm?+mm[2]:0,t2=t2o(s);
+   out.push({n:'Migration '+X+'°C × '+hd+'’',k:'mig',from:lv,mx:X,m:hd,up:+s.up||1,dn:+s.dn||1,to:t2,g:1,p:''});lv=t2}
+  else if(s.t==='U'){const t2=t2o(s);out.push({n:'Ramp '+tc(s.top)+' to '+t2+'°C',k:'temp',from:lv,to:t2,r:+s.up||1,x:0,g:1,p:''});lv=t2}
+  else out.push({n:tc([s.top,s.bot].filter(Boolean).join(' – '))||(s.t==='R'?'Linear dosing':s.t==='T'?'Progressive':'Hold'),k:'hold',h:lv,m:mins(s.m),gt:tc(s.top),gb:tc(s.bot),sh:s.t==='R'?'R':(s.t==='T'&&/SODA|PROGRESSIVE/i.test((s.top||'')+' '+(s.bot||'')))?'T':'',p:''})});
+ return out}
+function libTot(st){return st.reduce((a,s)=>a+(s.k=='hold'?+s.m:s.k=='mig'?Math.abs(s.mx-s.from)/s.up+(+s.m)+Math.abs(s.mx-s.to)/s.dn:Math.abs(s.to-s.from)/s.r+(+s.x||0)),0)}
+function hmm(m){m=Math.round(m);const h=Math.floor(m/60);return h?h+'h '+(m%60)+'m':m+'m'}
+function libNote(p,st){if(p.sub)return tc(p.sub);return 'Start '+p.t0+'°C. '+st.filter(x=>x.sh).map(x=>x.n+' '+x.m+'’').join(' → ')}
+function llib(id){const p=LIBD.find(x=>x.id==id);if(!p)return;CUR=null;S=libSteps(p);$('tmax').value=Math.max(p.t0,...S.map(s=>s.mx||s.to||s.h||0));$('pname').value=tc(p.title);$('pfolder').value='Dyeing';$('pnote').value=libNote(p,S);sv(1);curLabel();tab('calc')}
 let H=0,PR=[];try{PR=JSON.parse(localStorage.getItem('dyeProcs'))||[]}catch(e){}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function pstore(){try{localStorage.setItem('dyeProcs',JSON.stringify(PR))}catch(e){}}
-async function psave(){const n=$('pname').value.trim();if(!n){alert('Enter a name');return}
- const o={id:Date.now().toString(36),name:n,ts:Date.now(),fab:$('fab').value,gsm:v('gsm'),shade:$('shade').value,start:$('start').value,run:$('run').value,tmax:$('tmax').value,rate:$('rate').value,manual:manual,steps:JSON.parse(JSON.stringify(S)),tot:$('tot').textContent};
- const k=PR.findIndex(p=>p.name==n);if(k>=0){o.id=PR[k].id;PR[k]=o}else PR.unshift(o);
- pstore();$('pname').value='';plist();const rr=await push(o);alert(rr=='ok'?'Saved here and in Google Sheet':'Saved on this device only. '+rr)}
-function pload(id){const p=PR.find(x=>x.id==id);if(!p)return;
- $('fab').value=p.fab;$('gsm').value=p.gsm;$('shade').value=p.shade;$('start').value=p.start;$('run').value=p.run;$('tmax').value=p.tmax;manual=p.manual;$('rate').value=p.rate;
- S=JSON.parse(JSON.stringify(p.steps));sv(1);tab('calc')}
-function pdel(id){if(!confirm('Delete this process?'))return;PR=PR.filter(x=>x.id!=id);pstore();plist();push({id:id,del:1})}
-function plist(){$('svl').innerHTML=PR.length?PR.map(p=>`<div class="er"><b>${esc(p.name)}</b><div class="p">${esc(p.fab)} ${p.gsm} GSM • ${p.shade==90?'White':'Color'} • ${esc(p.tot)} • ${new Date(p.ts).toLocaleDateString()}</div><div class="bs"><button class="bt" onclick="pload('${p.id}')">Load</button><button class="bt" onclick="pdel('${p.id}')">Delete</button></div></div>`).join(''):'<div class="p">No saved processes yet.</div>'}
+let CUR=null;
+function curLabel(){const p=CUR&&PR.find(x=>x.id==CUR);$('curl').textContent=p?'Editing saved process: '+p.name+' ('+(p.folder||'Dyeing')+'). Save overwrites it, Save as makes a copy.':'New process, not saved yet. Enter a name and press Save or Save as.'}
+async function psave(asNew){let n=$('pname').value.trim();
+ const cp=CUR&&PR.find(x=>x.id==CUR);
+ if(asNew){n=prompt('Save as (new name):',cp&&n==cp.name?n+' copy':n);if(n===null)return;n=n.trim()}
+ if(!n){alert('Enter a name');return}
+ const o={id:Date.now().toString(36),name:n,ts:Date.now(),folder:$('pfolder').value,note:$('pnote').value,fab:$('fab').value,gsm:v('gsm'),shade:$('shade').value,start:$('start').value,run:$('run').value,tmax:$('tmax').value,rate:$('rate').value,manual:manual,steps:JSON.parse(JSON.stringify(S)),tot:$('tot').textContent};
+ let k=-1;
+ if(!asNew&&cp){o.id=cp.id;k=PR.findIndex(x=>x.id==cp.id)}
+ else{k=PR.findIndex(p=>p.name==n&&(p.folder||'Dyeing')==o.folder);if(k>=0){if(!confirm('"'+n+'" already exists in '+o.folder+'. Replace it?'))return;o.id=PR[k].id}}
+ if(k>=0)PR[k]=o;else PR.unshift(o);
+ CUR=o.id;$('pname').value=n;
+ pstore();plist();curLabel();const rr=await push(o);alert(rr=='ok'?'Saved here and in Google Sheet':'Saved on this device only. '+rr)}
+const FOLD=['Pretreatment & enzyme','Dyeing','After treatment'];
+function pmove(id,f){const p=PR.find(x=>x.id==id);if(!p)return;p.folder=f;p.ts=Date.now();pstore();plist();push(p)}
+function pload(id){const p=PR.find(x=>x.id==id);if(!p)return;CUR=p.id;$('pname').value=p.name;
+ $('pfolder').value=p.folder||'Dyeing';$('fab').value=p.fab;$('gsm').value=p.gsm;$('shade').value=p.shade;$('start').value=p.start;$('run').value=p.run;$('tmax').value=p.tmax;manual=p.manual;$('rate').value=p.rate;$('pnote').value=p.note||'';
+ S=JSON.parse(JSON.stringify(p.steps));sv(1);curLabel();tab('calc')}
+function pdel(id){if(!confirm('Delete this process?'))return;PR=PR.filter(x=>x.id!=id);if(CUR==id)CUR=null;pstore();plist();curLabel();push({id:id,del:1})}
+function plist(){const card=p=>`<div class="er"><b>${esc(p.name)}</b><div class="p">${esc(p.fab)} ${p.gsm} GSM • ${p.shade==90?'White':'Color'} • ${esc(p.tot)} • ${new Date(p.ts).toLocaleDateString()}</div><div class="bs"><button class="bt" onclick="pload('${p.id}')">Load</button><select class="bt mvs" onchange="pmove('${p.id}',this.value)">${FOLD.map(f=>`<option${f==(p.folder||'Dyeing')?' selected':''}>${esc(f)}</option>`).join('')}</select><button class="bt" onclick="pdel('${p.id}')">Delete</button></div></div>`;
+ const lcard=p=>{const st=libSteps(p);return `<div class="er"><b>${esc(p.id)} – ${esc(tc(p.title.replace(/\s*-\s*\d+$/,'')))}</b><div class="p">Library • start ${p.t0}°C • ${st.length} steps • ${hmm(libTot(st))}${p.sub?' • '+esc(tc(p.sub)):''}</div><div class="bs"><button class="bt" onclick="llib('${p.id}')">Load</button></div></div>`};
+ $('svl').innerHTML=FOLD.map(f=>{const l=PR.filter(p=>(FOLD.includes(p.folder)?p.folder:'Dyeing')==f),lb=f=='Dyeing'?LIBD:[];return `<div class="fh">📁 ${esc(f)} (${l.length+lb.length})</div>`+l.map(card).join('')+lb.map(lcard).join('')+(l.length||lb.length?'':'<div class="p">Empty</div>')}).join('')}
 const G_URL='https://script.google.com/macros/s/AKfycbyh579ay_6hAKofZX-cSE9FhxZdd3OGuSxhzDgWzaomkyqRwQ49Ck2ho9CcUlSzFnhz/exec',G_KEY='1234';
 function gcfg(){let c={};try{c=JSON.parse(localStorage.getItem('dyeG'))||{}}catch(e){}return {url:c.url||G_URL,key:c.key||G_KEY}}
 function gsave(){try{localStorage.setItem('dyeG',JSON.stringify({url:$('gurl').value.trim(),key:$('gkey').value.trim()}))}catch(e){}msg('Settings saved')}
@@ -140,20 +207,107 @@ function addSel(i){return `<select class="as" onchange="ins(${i},this.value)"><o
 function ins(i,j){if(j==='')return;S.splice(i+1,0,JSON.parse(JSON.stringify(P[+j])));sv(1)}
 const hm=m=>{m=Math.round(m);const h=Math.floor(m/60);return h?h+'h '+(m%60)+'m':m+'m'};
 const ck=x=>{x=Math.round(x)%1440;return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0')};
+// ---- Process sketch graph (Unit 2 browser style): step widths are schematic, temperature is to scale
+function sketch(E){
+ if(!E.length)return '';
+ const ts=[];E.forEach(e=>{ts.push(e.y0,e.y1);if(e.k=='mig')ts.push(e.mx)});
+ const tMin=Math.min(...ts),tMax=Math.max(...ts),rg=tMax-tMin,kk=rg>0?Math.min(2.6,130/rg):0;
+ const BASE=400,AX=6,X0=56,Y=t=>BASE-(t-tMin)*kk,n=v=>(+v).toFixed(1),f1=v=>String(+(+v).toFixed(1));
+ let topY=BASE-14,maxB=0;const TR=y=>{if(y<topY)topY=y};
+ const lines=(s,m)=>{s=String(s||'').trim();if(!s)return[];const w=s.split(/\s+/),L=[];let c='';w.forEach(t=>{if(c&&(c+' '+t).length>(m||12)){L.push(c);c=t}else c=c?c+' '+t:t});if(c)L.push(c);return L};
+ const tx=(t,x,y,o)=>{o=o||{};return '<text x="'+n(x)+'" y="'+n(y)+'" font-size="'+(o.fs||10)+'" text-anchor="'+(o.a||'middle')+'" font-weight="'+(o.w||400)+'" fill="currentColor"'+(o.op?' fill-opacity="'+o.op+'"':'')+'>'+esc(t)+'</text>'};
+ const ml=(t,xc,y0,fs,up,o)=>{const L=lines(t);if(up&&L.length)TR(y0-(L.length-1)*(fs+2)-fs);return L.map((q,i)=>tx(q,xc,up?y0-(L.length-1-i)*(fs+2):y0+i*(fs+2),Object.assign({fs:fs},o))).join('')};
+ const poly=pts=>'<polygon points="'+pts.map(p=>n(p[0])+','+n(p[1])).join(' ')+'" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>';
+ const lab=e=>{const nm=e.nm||'',p=nm.split(' – ');return[e.gt!==undefined?e.gt:(e.sh?p[0]:nm),e.gb!==undefined?e.gb:(e.sh?p.slice(1).join(' – '):'')]};
+ let x=X0,path='M'+X0+' '+n(Y(E[0].y0)),out='',ticks='',guides='';const levels=new Set();
+ E.forEach(e=>{
+  let lb=lab(e),t=lb[0],b=lb[1],ty='G';
+  if(e.k=='mig')ty='M';else if(e.ramp&&e.y1>e.y0+0.5)ty='U';else if(e.ramp&&e.y1<e.y0-0.5)ty='D';else if(e.sh=='R')ty='R';else if(e.sh=='T')ty='T';
+  if(ty=='M')t=e.mx+'°C X '+f1(e.hold)+'’';
+  const bl=lines(b);maxB=Math.max(maxB,bl.length);
+  const mxl=Math.max(0,...lines(t).map(q=>q.length),...bl.map(q=>q.length));
+  const w=Math.max({G:26,R:44,T:48,M:110,U:46,D:46}[ty],Math.min(mxl*6+8,110));
+  const xc=x+w/2,ya=Y(e.y0),yb=Y(e.y1);
+  levels.add(e.y0);levels.add(e.y1);
+  path+=' L'+n(x)+' '+n(ya);
+  if(ty=='M'){
+   const ym=Y(e.mx),sl=Math.min(30,w/3);levels.add(e.mx);
+   path+=' L'+n(x+sl)+' '+n(ym)+' L'+n(x+w-sl)+' '+n(ym)+' L'+n(x+w)+' '+n(yb);
+   out+=poly([[x,ya],[x+sl,ym],[x+w-sl,ym],[x+w,yb]]);
+   out+=ml(t,xc,ym-8,10.5,true,{w:700});
+   const ru=e.up!==''&&e.up!=null?f1(e.up)+'°C/min':'',rd=e.dn!==''&&e.dn!=null?f1(e.dn)+'°C/min':'';
+   if(ru)out+=tx(ru,x+sl/2-3,(ya+ym)/2+3,{fs:8.5,a:'end',op:.85});
+   if(rd)out+=tx(rd,x+w-sl/2+3,(yb+ym)/2+3,{fs:8.5,a:'start',op:.85});
+  }else{
+   path+=' L'+n(x+w)+' '+n(yb);
+   if(ty=='R'){out+=poly([[x,ya],[x,ya-30],[x+w,ya-30],[x+w,ya]]);TR(ya-30);if(t)out+=ml(t,xc,ya-37,10,true,{w:600})}
+   else if(ty=='T'){out+=poly([[x,ya],[x+w,ya-46],[x+w,ya]]);TR(ya-46);if(t)out+=ml(t,xc,ya-53,10,true,{w:600})}
+   else if(ty=='U'){const ym=(ya+yb)/2;out+=ml(t,x+w/2+4,ym+14,9.5,false,{a:'start',w:600});if(e.r)out+=tx(f1(e.r)+'°C/min',x+w/2+4,ym+14+lines(t).length*11.5,{fs:8.5,a:'start',op:.85})}
+   else if(ty=='D'){const ym=(ya+yb)/2;out+=ml(t,x+w/2+4,ym-8-(e.r?11:0),9.5,true,{a:'start',w:600});if(e.r)out+=tx(f1(e.r)+'°C/min',x+w/2+4,ym-8,{fs:8.5,a:'start',op:.85})}
+   else if(t)out+=ml(t,xc,Math.min(ya,yb)-8,10,true,{w:600});
+  }
+  guides+='<line x1="'+n(x)+'" x2="'+n(x)+'" y1="'+n(Math.min(ya,yb))+'" y2="'+(BASE+6)+'" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="2 3"/>';
+  ticks+='<line x1="'+n(x)+'" x2="'+n(x)+'" y1="'+(BASE+6)+'" y2="'+(BASE+12)+'" stroke="currentColor"/>'+tx(String(e.i+1),xc,BASE+19,{fs:8,op:.6})+tx(f1(e.du)+'’',xc,BASE+31,{fs:11,w:700})+(bl.length?ml(b,xc,BASE+44,9,false,{op:.85}):'');
+  x+=w;
+ });
+ const END=x+16,yE=Y(E[E.length-1].y1);
+ path+=' L'+n(END)+' '+n(yE);
+ ticks+='<line x1="'+n(x)+'" x2="'+n(x)+'" y1="'+(BASE+6)+'" y2="'+(BASE+12)+'" stroke="currentColor"/><line x1="'+X0+'" x2="'+n(x)+'" y1="'+(BASE+6)+'" y2="'+(BASE+6)+'" stroke="currentColor"/>';
+ let g='';[...levels].sort((a,c)=>a-c).forEach(l=>{const yy=Y(l);TR(yy-12);g+='<line x1="'+(AX+40)+'" x2="'+n(END)+'" y1="'+n(yy)+'" y2="'+n(yy)+'" stroke="currentColor" stroke-opacity=".35" stroke-width=".8" stroke-dasharray="4 3"/>'+tx(f1(l)+'°C',AX,yy+4,{fs:10.5,a:'start',w:700})});
+ const BOT=BASE+44+maxB*11+10,total=END+14;
+ return '<svg viewBox="0 '+Math.floor(topY-10)+' '+Math.ceil(total)+' '+Math.ceil(BOT-topY+10)+'" xmlns="http://www.w3.org/2000/svg" style="font-family:Arial,Helvetica,sans-serif">'+g+guides+'<path d="'+path+'" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>'+out+ticks+'</svg>';
+}
+function graph(pts,mk,tot,t0,E){const g=$('gr');
+ if(!$('gon').checked||!pts.length||tot<=0){g.innerHTML='';return}
+ if($('gst').value=='s'){g.innerHTML=sketch(E)+'<div class="lg">▭ Linear dosing / recirculation &nbsp; ◢ Progressive dosing &nbsp; ⏢ Migration (grade °C/min)</div>';return}
+ const W=640,L=34,R=12,Tp=22,ph=100,SH=64,Ht=Tp+ph+20+SH+4,pw=W-L-R;
+ const ys=pts.map(p=>p[1]);let yM=Math.ceil((Math.max(...ys)+5)/20)*20,ym=Math.max(0,Math.floor((Math.min(...ys)-5)/20)*20);if(yM<=ym)yM=ym+20;
+ const X=x=>(L+x/tot*pw).toFixed(1),Y=y=>(Tp+ph-(y-ym)/(yM-ym)*ph).toFixed(1);
+ const xs=[10,15,20,30,60,120].find(s=>tot/s<=10)||120;let o='';
+ for(let y=ym;y<=yM;y+=20)o+=`<line x1="${L}" x2="${W-R}" y1="${Y(y)}" y2="${Y(y)}" stroke="currentColor" opacity=".18"/><text x="${L-4}" y="${+Y(y)+3}" font-size="9" text-anchor="end" fill="currentColor">${y}</text>`;
+ for(let x=0;x<=tot+0.01;x+=xs)o+=`<line x1="${X(x)}" x2="${X(x)}" y1="${Tp}" y2="${Tp+ph}" stroke="currentColor" opacity=".12"/><text x="${X(x)}" y="${Tp+ph+13}" font-size="9" text-anchor="middle" fill="currentColor">${ck(t0+x)}</text>`;
+ mk.forEach((m,j)=>{o+=`<line x1="${X(m[0])}" x2="${X(m[0])}" y1="${Tp-4}" y2="${Tp+ph}" stroke="currentColor" opacity=".25" stroke-dasharray="2 2"/><text x="${X(m[0])}" y="${8+(j%2)*8}" font-size="7" text-anchor="middle" fill="currentColor">${m[1]}</text>`;
+  if(m[4]){const xa=X(m[0]),xb=X(m[2]),yb=Y(m[5]);o+=m[4]=='R'?`<rect x="${xa}" y="${(+yb-10).toFixed(1)}" width="${(xb-xa).toFixed(1)}" height="10" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1"/>`:`<polygon points="${xa},${yb} ${xb},${(+yb-18).toFixed(1)} ${xb},${yb}" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1"/>`}
+  const bw=X(m[2])-X(m[0]);o+=`<line x1="${X(m[0])}" x2="${X(m[0])}" y1="${Tp+ph+20}" y2="${Ht-2}" stroke="currentColor" opacity=".2"/>`;
+  if(bw>=6){const fs=Math.min(8,bw-1.5),mc=Math.floor(SH/(fs*0.55));let nm=String(m[3]||'');if(nm.length>mc)nm=nm.slice(0,mc-1)+'…';
+   const tx=+X(m[0])+bw/2+fs*0.35,ty=Ht-4;o+=`<text x="${tx.toFixed(1)}" y="${ty}" font-size="${fs.toFixed(1)}" fill="currentColor" transform="rotate(-90 ${tx.toFixed(1)} ${ty})">${esc(nm)}</text>`}});
+ o+=`<polyline fill="none" stroke="#0b6bcb" stroke-width="2" stroke-linejoin="round" points="${pts.map(p=>X(p[0])+','+Y(p[1])).join(' ')}"/>`;
+ const pk=pts.reduce((a,b)=>b[1]>a[1]?b:a);
+ o+=`<text x="${X(pk[0])}" y="${+Y(pk[1])-5}" font-size="10" font-weight="700" text-anchor="middle" fill="currentColor">${pk[1]}°C</text><text x="4" y="${Tp+3}" font-size="9" fill="currentColor">°C</text>`;
+ g.innerHTML=`<svg viewBox="0 0 ${W} ${Ht}" xmlns="http://www.w3.org/2000/svg">${o}</svg><div class="lg">▭ Linear dosing / recirculation &nbsp; ◢ Progressive dosing</div>`}
+try{$('gon').checked=localStorage.getItem('dyeGraph')!=='0'}catch(e){}
+try{$('gst').value=localStorage.getItem('dyeGraphStyle')||'s'}catch(e){}
+$('gst').onchange=()=>{try{localStorage.setItem('dyeGraphStyle',$('gst').value)}catch(e){}calc()};
+$('gon').onchange=()=>{try{localStorage.setItem('dyeGraph',$('gon').checked?'1':'0')}catch(e){}calc()};
 function calc(){
  if(!manual)$('rate').value=grade();
  const rate=v('rate')||1,T=v('tmax'),sc=$('shade').value;
  const sub=x=>(x||'').replace(/\{T\}/g,T).replace(/\{S\}/g,sc).replace(/\{H\}/g,H);
- const d=s=>s.k=='fix'?(+s.m||0):s.k=='steam'?(T-80)/rate:s.k=='run'?v('run'):s.k=='hold'?(+s.m||0):s.k=='temp'?Math.abs(s.to-s.from)/(s.r||1)+(+s.x||0):(T-s.to)/(s.r||1)+(+s.x||0);
+ const d=s=>s.k=='fix'?(+s.m||0):s.k=='steam'?(T-80)/rate:s.k=='run'?v('run'):s.k=='hold'?(+s.m||0):s.k=='temp'?Math.abs(s.to-s.from)/(s.r||1)+(+s.x||0):s.k=='mig'?Math.abs(s.mx-s.from)/(s.up||1)+(+s.m||0)+Math.abs(s.mx-s.to)/(s.dn||1):(T-s.to)/(s.r||1)+(+s.x||0);
  const [h,m]=($('start').value||'00:00').split(':');let t=h*60+ +m;const t0=t;
- $('out').innerHTML=S.map((s,i)=>{H=s.h;const du=d(s),a=t;t+=du;
+ let cur=null;const pts=[],mk=[],E=[];
+ const tp=(s,nm,x0,du,i)=>{const x1=x0+du;mk.push([x0,i+1,x1,nm]);
+  if(s.k=='steam'){const y0=cur==null?80:cur;pts.push([x0,y0],[x1,T]);cur=T}
+  else if(s.k=='run'){cur=T;pts.push([x0,T],[x1,T])}
+  else if(s.k=='hold'){cur=+s.h;pts.push([x0,cur],[x1,cur])}
+  else if(s.k=='cool'){const r=(T-s.to)/(s.r||1);pts.push([x0,T],[x0+Math.min(r,du),s.to],[x1,s.to]);cur=s.to}
+  else if(s.k=='mig'){const a=Math.abs(s.mx-s.from)/(s.up||1),b=Math.abs(s.mx-s.to)/(s.dn||1),h=+s.m||0;pts.push([x0,s.from],[x0+a,s.mx],[x0+a+h,s.mx],[x0+a+h+b,s.to]);cur=s.to}
+  else if(s.k=='temp'){const r=Math.abs(s.to-s.from)/(s.r||1);pts.push([x0,s.from],[x0+Math.min(r,du),s.to],[x1,s.to]);cur=s.to}
+  else{const m1=nm.match(/to\s*(\d+)\s*°C/),m2=nm.match(/(\d+)\s*°C/);
+   if(m1){const y=+m1[1];if(cur==null)cur=y;pts.push([x0,cur],[x1,y]);cur=y}
+   else if(m2){cur=+m2[1];pts.push([x0,cur],[x1,cur])}
+   else{if(cur==null)cur=30;pts.push([x0,cur],[x1,cur])}}};
+ $('out').innerHTML=S.map((s,i)=>{H=s.h;const du=d(s),a=t;t+=du;const n0=pts.length,nm0=sub(s.n);tp(s,nm0,a-t0,du,i);mk[mk.length-1].push(s.sh||'',cur);E.push({i:i,nm:nm0,k:s.k,du:du,y0:pts[n0][1],y1:pts[pts.length-1][1],ramp:s.k=='steam'||s.k=='cool'||s.k=='temp'||(s.k=='fix'&&/to\s*\d+\s*°C/.test(nm0)),r:s.k=='steam'?rate:(s.k=='cool'||s.k=='temp')?s.r:'',sh:s.sh,gt:s.gt,gb:s.gb,mx:s.mx,hold:s.m,up:s.up,dn:s.dn});
   return `<div class="st"><b>${i+1}. ${sub(s.n)}${s.k=='steam'?' @ '+rate+'°C/min':''}</b><div class="t"><span>${ck(a)} → ${ck(t)}</span><span>${hm(du)}</span></div>${s.p?`<div class="p">∥ ${sub(s.p)} (operator does in parallel, no time added)</div>`:''}</div>`}).join('');
  $('tot').textContent=hm(t-t0)+' • ends '+ck(t);
- $('psum').textContent=$('fab').value+' '+$('gsm').value+' GSM • '+$('shade').selectedOptions[0].text+' • '+rate+'°C/min • Run '+$('run').value+' min';
+ graph(pts,mk,t-t0,t0,E);
+ const gs0=S.filter(s=>s.g);$('mgw').hidden=!gs0.length;if(gs0.length&&document.activeElement!==$('mgr')){const q=gs0[0];$('mgr').value=q.k=='mig'?q.up:q.r}
+ $('pnp').textContent=$('pnote').value;$('psum').textContent=$('fab').value+' '+$('gsm').value+' GSM • '+$('shade').selectedOptions[0].text+' • '+rate+'°C/min • Run '+$('run').value+' min';
  $('sopt').innerHTML='<tr><th>#</th><th>Step</th><th>Parallel (operator)</th></tr>'+S.map((s,i)=>(H=s.h,`<tr><td>${i+1}</td><td>${sub(s.n)}</td><td>${sub(s.p)}</td></tr>`)).join('');
 }
+$('mgr').oninput=()=>{const x=+$('mgr').value;if(!(x>0))return;S.forEach(s=>{if(s.g){if(s.k=='mig'){s.up=x;s.dn=x}else s.r=x}});try{localStorage.setItem('dyeSteps2',JSON.stringify(S))}catch(e){}edit();calc()};
 $('rate').oninput=()=>{manual=true;calc()};
 ['fab','gsm'].forEach(i=>$(i).oninput=()=>{manual=false;calc()});
-['shade','start','run','tmax'].forEach(i=>$(i).oninput=calc);
-edit();calc();
+['shade','start','run','tmax','pnote'].forEach(i=>$(i).oninput=calc);
+edit();calc();curLabel();
 </script></body></html>
