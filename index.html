@@ -61,6 +61,7 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}td,th{bord
 <label>Script URL<input id="gurl" placeholder="https://script.google.com/macros/s/.../exec"></label>
 <label style="margin-top:6px">Key<input id="gkey"></label>
 <div class="bs"><button class="bt" onclick="gsave()">Save settings</button><button class="bt" onclick="gsync()">Sync now</button></div>
+<div class="bs"><button class="bt" onclick="gtest()">Test connection</button><button class="bt" onclick="greset()">Reset to built-in URL</button></div>
 </div>
 <script>
 const $=i=>document.getElementById(i),v=i=>+$(i).value;
@@ -104,27 +105,29 @@ const P=[{n:'Fill from PT',k:'fix',m:5,p:''},{n:'Fill',k:'fix',m:5,p:''},{n:'Inj
 let H=0,PR=[];try{PR=JSON.parse(localStorage.getItem('dyeProcs'))||[]}catch(e){}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function pstore(){try{localStorage.setItem('dyeProcs',JSON.stringify(PR))}catch(e){}}
-function psave(){const n=$('pname').value.trim();if(!n){alert('Enter a name');return}
+async function psave(){const n=$('pname').value.trim();if(!n){alert('Enter a name');return}
  const o={id:Date.now().toString(36),name:n,ts:Date.now(),fab:$('fab').value,gsm:v('gsm'),shade:$('shade').value,start:$('start').value,run:$('run').value,tmax:$('tmax').value,rate:$('rate').value,manual:manual,steps:JSON.parse(JSON.stringify(S)),tot:$('tot').textContent};
  const k=PR.findIndex(p=>p.name==n);if(k>=0){o.id=PR[k].id;PR[k]=o}else PR.unshift(o);
- pstore();$('pname').value='';plist();push(o);alert('Saved')}
+ pstore();$('pname').value='';plist();const rr=await push(o);alert(rr=='ok'?'Saved here and in Google Sheet':'Saved on this device only. '+rr)}
 function pload(id){const p=PR.find(x=>x.id==id);if(!p)return;
  $('fab').value=p.fab;$('gsm').value=p.gsm;$('shade').value=p.shade;$('start').value=p.start;$('run').value=p.run;$('tmax').value=p.tmax;manual=p.manual;$('rate').value=p.rate;
  S=JSON.parse(JSON.stringify(p.steps));sv(1);tab('calc')}
 function pdel(id){if(!confirm('Delete this process?'))return;PR=PR.filter(x=>x.id!=id);pstore();plist();push({id:id,del:1})}
 function plist(){$('svl').innerHTML=PR.length?PR.map(p=>`<div class="er"><b>${esc(p.name)}</b><div class="p">${esc(p.fab)} ${p.gsm} GSM • ${p.shade==90?'White':'Color'} • ${esc(p.tot)} • ${new Date(p.ts).toLocaleDateString()}</div><div class="bs"><button class="bt" onclick="pload('${p.id}')">Load</button><button class="bt" onclick="pdel('${p.id}')">Delete</button></div></div>`).join(''):'<div class="p">No saved processes yet.</div>'}
-const G_URL='https://script.google.com/macros/s/AKfycbyBw2vvvsksJSZmWo8Q0IjL9veyt22mJ02uqB_RwmVu35AgDwIy0b8f9rnRblXBrBry/exec',G_KEY='1234';
+const G_URL='https://script.google.com/macros/s/AKfycbyh579ay_6hAKofZX-cSE9FhxZdd3OGuSxhzDgWzaomkyqRwQ49Ck2ho9CcUlSzFnhz/exec',G_KEY='1234';
 function gcfg(){let c={};try{c=JSON.parse(localStorage.getItem('dyeG'))||{}}catch(e){}return {url:c.url||G_URL,key:c.key||G_KEY}}
 function gsave(){try{localStorage.setItem('dyeG',JSON.stringify({url:$('gurl').value.trim(),key:$('gkey').value.trim()}))}catch(e){}msg('Settings saved')}
 function msg(t){$('svmsg').textContent=t}
-const BLK='Google sync is blocked on this page. Open the downloaded HTML file to sync.';
-async function push(o){const c=gcfg();if(!c.url)return;try{await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({key:c.key,action:o.del?'delete':'save',id:o.id,name:o.name,data:o})});msg('Saved to Google Sheet')}catch(e){msg(BLK)}}
+async function gtest(){const c=gcfg();msg('Testing...');try{const r=await fetch(c.url+'?key='+encodeURIComponent(c.key));const t=await r.text();msg('HTTP '+r.status+' | '+t.slice(0,300))}catch(e){msg('Failed: '+e.message+' | URL used: '+String(c.url).slice(0,70)+'...')}}
+function greset(){try{localStorage.removeItem('dyeG')}catch(e){}$('gurl').value=G_URL;$('gkey').value=G_KEY;msg('Reset to built-in URL and key. Press Sync now.')}
+const BLK='Google sync failed. Use the GitHub link, not claude.ai, and set the deployment access to Anyone. Detail: ';
+async function push(o){const c=gcfg();if(!c.url)return 'No Google URL set';try{const r=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({key:c.key,action:o.del?'delete':'save',id:o.id,name:o.name,data:o})});const j=await r.json();if(j.error){msg('Google: '+j.error);return 'Google: '+j.error}msg('Saved to Google Sheet');return 'ok'}catch(e){msg(BLK+e.message);return BLK+e.message}}
 async function gsync(){const c=gcfg();if(!c.url){msg('Enter Script URL first');return}
  try{const r=await fetch(c.url+(c.url.includes('?')?'&':'?')+'key='+encodeURIComponent(c.key));const j=await r.json();if(j.error){msg(j.error);return}
  j.items.forEach(it=>{const k=PR.findIndex(p=>p.id==it.id);if(k<0)PR.push(it);else if(it.ts>PR[k].ts)PR[k]=it});
  PR.sort((a,b)=>b.ts-a.ts);pstore();plist();
  for(const p of PR){const m=j.items.find(i=>i.id==p.id);if(!m||p.ts>m.ts)await push(p)}
- msg('Synced: '+PR.length+' processes')}catch(e){msg(BLK)}}
+ msg('Synced: '+PR.length+' processes')}catch(e){msg(BLK+e.message)}}
 plist();$('gurl').value=gcfg().url||'';$('gkey').value=gcfg().key||'';
 let GR;try{GR=JSON.parse(localStorage.getItem('dyeGrades'))}catch(e){}
 if(!Array.isArray(GR))GR=[{f:'Single Jersey',a:0,b:170,r:3},{f:'Single Jersey',a:171,b:195,r:2},{f:'Single Jersey',a:196,b:9999,r:1},{f:'Terry',a:0,b:250,r:3},{f:'Terry',a:251,b:9999,r:1.5},{f:'Fleece',a:0,b:9999,r:3}];
