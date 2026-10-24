@@ -42,11 +42,6 @@ h1{font-size:13pt;margin:0 0 3px}.tabs,#calc .g,.no{display:none!important}
 <div class="g">
 <label>Fabric name<select id="fab"></select></label>
 <label>GSM<input id="gsm" type="number" value="180"></label>
-<label>Shade<select id="shade"><option value="80">Color (scour 80°C)</option><option value="90">White (scour 90°C)</option></select></label>
-<label>Start time<input id="start" type="time" value="08:00"></label>
-<label>Steam-up rate °C/min (auto from grade)<input id="rate" type="number" step="0.1"></label>
-<label>Run time at dye temp (min)<input id="run" type="number" value="30"></label>
-<label>Dye temp °C<input id="tmax" type="number" value="105"></label>
 <label style="grid-column:1/-1">Process note<textarea id="pnote" rows="2" placeholder="Note for this process"></textarea></label>
 <label id="mgw" hidden>Migration grade °C/min<input id="mgr" type="number" step="0.1"></label>
 <label style="flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--fg)"><input type="checkbox" id="gon" checked style="width:auto">Show graph</label>
@@ -61,6 +56,15 @@ h1{font-size:13pt;margin:0 0 3px}.tabs,#calc .g,.no{display:none!important}
 </div>
 
 <div id="ed" hidden>
+<h2>Program settings</h2>
+<div class="g">
+<label>Shade<select id="shade"><option value="80">Color (scour 80°C)</option><option value="90">White (scour 90°C)</option></select></label>
+<label>Start time<input id="start" type="time" value="08:00"></label>
+<label>Steam-up rate °C/min (auto from grade)<input id="rate" type="number" step="0.1"></label>
+<label>Run time at dye temp (min)<input id="run" type="number" value="30"></label>
+<label>Dye temp °C<input id="tmax" type="number" value="105"></label>
+</div>
+<h2>Steps</h2>
 <div class="p">Change name, time, parallel note. Use ↑ ↓ to move, ✕ to delete, + to add a step below.</div>
 <div id="edl"></div>
 <button class="bt" style="width:100%" onclick="if(confirm('Reset all steps to default?')){S=DEF();sv(1)}">Reset to default</button>
