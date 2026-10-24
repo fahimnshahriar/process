@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Dyeing Program Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--card:#f3f4f6;--line:#d8dbe0;--acc:#0b6bcb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--fg:#eceef1;--mut:#9aa0a8;--card:#1f2226;--line:#33373d;--acc:#5aa9ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15171a;--fg:#eceef1;--mut:#9aa0a8;--card:#1f2226;--line:#33373d;--acc:#5aa9ff;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0 auto;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif;padding:14px;max-width:640px}
+h1{font-size:20px;margin:6px 0 12px}h2{font-size:15px;margin:16px 0 8px;color:var(--mut)}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+input,select{font:16px system-ui;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);width:100%;box-sizing:border-box}
+.tot{background:var(--acc);color:#fff;border-radius:12px;padding:12px;margin:14px 0;display:flex;justify-content:space-between;font-weight:600}
+.st{background:var(--card);border-radius:10px;padding:10px;margin-bottom:8px}
+.st b{display:block}.t{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-top:3px}
+.p{font-size:12px;color:var(--mut);margin-top:4px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}.tabs button,.bt{font:600 13px system-ui;padding:9px 4px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}.tabs button{flex:1}.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.ps{display:none;font-size:13px;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}td,th{border:1px solid var(--line);padding:6px;text-align:left}table input{padding:5px;font-size:14px}th{background:var(--card)}
+.er{background:var(--card);border-radius:10px;padding:8px;margin-bottom:8px}.er .g{margin-top:6px}.bs{display:flex;gap:6px;margin-top:6px}.bs .bt{flex:1}.as{margin:0 0 8px;font-weight:600}
+@media print{.tabs,#calc .g,.no{display:none!important}.ps{display:block}body{background:#fff!important;color:#000!important}.tot{background:none;color:#000;border:1px solid #000}.st{background:none;border:1px solid #999;color:#000;break-inside:avoid}.t,.p{color:#000}}
+</style></head><body>
+<h1>Dyeing Program Calculator</h1>
+<div class="tabs"><button id="t1" class="on" onclick="tab('calc')">Calc</button><button id="t2" onclick="tab('ed')">Edit</button><button id="t3" onclick="tab('sop')">SOP</button><button id="t4" onclick="tab('saved')">Saved</button><button onclick="window.print()">Print</button></div>
+
+<div id="calc">
+<div class="g">
+<label>Fabric name<select id="fab"></select></label>
+<label>GSM<input id="gsm" type="number" value="180"></label>
+<label>Shade<select id="shade"><option value="80">Color (scour 80°C)</option><option value="90">White (scour 90°C)</option></select></label>
+<label>Start time<input id="start" type="time" value="08:00"></label>
+<label>Steam-up rate °C/min (auto from grade)<input id="rate" type="number" step="0.1"></label>
+<label>Run time at dye temp (min)<input id="run" type="number" value="30"></label>
+<label>Dye temp °C<input id="tmax" type="number" value="105"></label>
+</div>
+<div class="tot"><span>Total</span><span id="tot"></span></div>
+<div id="psum" class="ps"></div>
+<div id="out"></div>
+<div class="no"><h2>Save this process</h2><div class="g"><input id="pname" placeholder="Process name"><button class="bt" onclick="psave()">Save</button></div></div>
+</div>
+
+<div id="ed" hidden>
+<div class="p">Change name, time, parallel note. Use ↑ ↓ to move, ✕ to delete, + to add a step below.</div>
+<div id="edl"></div>
+<button class="bt" style="width:100%" onclick="if(confirm('Reset all steps to default?')){S=DEF();sv(1)}">Reset to default</button>
+</div>
+
+<div id="sop" hidden>
+<h2>Grade table: fabric name, GSM range, steam-up rate</h2>
+<div id="grl"></div>
+<div class="bs no"><button class="bt" onclick="gadd()">+ Add grade row</button></div>
+<h2>Main program (DF = drain + fill)</h2>
+<table id="sopt"></table>
+</div>
+
+<div id="saved" hidden>
+<div class="p" id="svmsg"></div>
+<div id="svl"></div>
+<h2>Google Sheet sync (optional)</h2>
+<label>Script URL<input id="gurl" placeholder="https://script.google.com/macros/s/.../exec"></label>
+<label style="margin-top:6px">Key<input id="gkey"></label>
+<div class="bs"><button class="bt" onclick="gsave()">Save settings</button><button class="bt" onclick="gsync()">Sync now</button></div>
+</div>
+<script>
+const $=i=>document.getElementById(i),v=i=>+$(i).value;
+const DEF=()=>[
+{n:'Fill from PT (60°C)',k:'fix',m:5,p:'ADD tank: prep + fill (anticrease, seq/det, MIH)'},
+{n:'Inject',k:'fix',m:3,p:''},
+{n:'Fabric load + steam to 80°C',k:'fix',m:10,p:'Caustic dosing From ADD2'},
+{n:'Dosing H2O2 & Stabilizer',k:'fix',m:5,p:''},
+{n:'Steam up 80→{T}°C',k:'steam',p:''},
+{n:'Run time at {T}°C',k:'run',p:'PT/ST fill heat to {S}°C'},
+{n:'Temp control {T}→80°C + sample',k:'cool',to:80,r:3,x:5,p:'PT fill + heat to 80°C'},
+{n:'DF (drain + fill)',k:'fix',m:5,p:''},
+{n:'Normal hot 80°C',k:'fix',m:10,p:'PT fill 70°C'},
+{n:'DF (drain + fill)',k:'fix',m:5,p:''},
+{n:'Block wash 70°C',k:'fix',m:10,p:'PT fill 60°C'},
+{n:'DF (drain + fill)',k:'fix',m:5,p:''},
+{n:'Overflow wash 60°C',k:'fix',m:10,p:'Prep ADD1 acid (H₂O₂ killer)'},
+{n:'DF (drain + fill)',k:'fix',m:5,p:''},
+{n:'Inject ADD1',k:'fix',m:3,p:''},
+{n:'Run time',k:'fix',m:10,p:''},
+{n:'Check pH',k:'fix',m:5,p:''}];
+let S;try{S=JSON.parse(localStorage.getItem('dyeSteps2'))}catch(e){}
+if(!Array.isArray(S))S=DEF();
+S.forEach(s=>{if(/D\/?F/.test(s.n)&&s.m==8)s.m=5});
+let manual=false;
+function grade(){const f=$('fab').value,g=v('gsm');
+ const rs=GR.filter(x=>x.f==f);const m=rs.find(x=>g>=x.a&&g<=x.b)||rs[rs.length-1];if(m)return +m.r;
+ return 3}
+function tab(n){['calc','ed','sop','saved'].forEach((x,i)=>{$(x).hidden=x!=n;$('t'+(i+1)).className=x==n?'on':''})}
+function sv(re){try{localStorage.setItem('dyeSteps2',JSON.stringify(S))}catch(e){}if(re)edit();calc()}
+function edit(){$('edl').innerHTML=S.map((s,i)=>{
+ let f='';
+ if(s.k=='fix')f=`<label>Minutes<input type="number" step="0.5" value="${s.m}" oninput="S[${i}].m=+this.value;sv()"></label>`;
+ else if(s.k=='cool')f=`<label>To °C<input type="number" value="${s.to}" oninput="S[${i}].to=+this.value;sv()"></label><label>Rate °C/min<input type="number" step="0.1" value="${s.r}" oninput="S[${i}].r=+this.value;sv()"></label><label>Extra min (sample)<input type="number" value="${s.x}" oninput="S[${i}].x=+this.value;sv()"></label>`;
+ else if(s.k=='hold')f=`<label>Hold temp °C<input type="number" value="${s.h}" oninput="S[${i}].h=+this.value;sv()"></label><label>Minutes<input type="number" step="0.5" value="${s.m}" oninput="S[${i}].m=+this.value;sv()"></label>`;
+ else if(s.k=='temp')f=`<label>From °C<input type="number" value="${s.from}" oninput="S[${i}].from=+this.value;sv()"></label><label>To °C<input type="number" value="${s.to}" oninput="S[${i}].to=+this.value;sv()"></label><label>Rate °C/min<input type="number" step="0.1" value="${s.r}" oninput="S[${i}].r=+this.value;sv()"></label><label>Extra min<input type="number" value="${s.x}" oninput="S[${i}].x=+this.value;sv()"></label>`;
+ else f=`<div class="p">${s.k=='steam'?'Time = auto from grade rate':'Time = Run time on Calculator tab'}</div>`;
+ return `${addSel(i-1)}<div class="er"><label>${i+1}. Step name<input value="${s.n.replace(/"/g,'&quot;')}" oninput="S[${i}].n=this.value;sv()"></label><div class="g">${f}</div><label style="margin-top:6px">Parallel note<input value="${(s.p||'').replace(/"/g,'&quot;')}" oninput="S[${i}].p=this.value;sv()"></label><div class="bs"><button class="bt" onclick="mv(${i},-1)">↑</button><button class="bt" onclick="mv(${i},1)">↓</button><button class="bt" onclick="S.splice(${i},1);sv(1)">✕</button></div></div>`}).join('')+addSel(S.length-1)}
+function mv(i,d){const j=i+d;if(j<0||j>=S.length)return;[S[i],S[j]]=[S[j],S[i]];sv(1)}
+const P=[{n:'Fill from PT',k:'fix',m:5,p:''},{n:'Fill',k:'fix',m:5,p:''},{n:'Inject',k:'fix',m:3,p:''},{n:'Dosing',k:'fix',m:5,p:''},{n:'Fabric load + temp control',k:'fix',m:10,p:''},{n:'Temp control',k:'temp',from:60,to:80,r:3,x:0,p:''},{n:'D/F (drain + fill)',k:'fix',m:5,p:''},{n:'Wash (normal hot)',k:'fix',m:10,p:''},{n:'Wash (block)',k:'fix',m:10,p:''},{n:'Wash (over flow)',k:'fix',m:10,p:''},{n:'Linear dosing',k:'fix',m:20,p:''},{n:'Recirculation',k:'fix',m:10,p:''},{n:'Migration at {H}°C',k:'hold',h:105,m:15,p:''},{n:'Progressive dosing',k:'fix',m:30,p:''},{n:'Run time / Hold time at {H}°C',k:'hold',h:105,m:30,p:''}];
+let H=0,PR=[];try{PR=JSON.parse(localStorage.getItem('dyeProcs'))||[]}catch(e){}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function pstore(){try{localStorage.setItem('dyeProcs',JSON.stringify(PR))}catch(e){}}
+function psave(){const n=$('pname').value.trim();if(!n){alert('Enter a name');return}
+ const o={id:Date.now().toString(36),name:n,ts:Date.now(),fab:$('fab').value,gsm:v('gsm'),shade:$('shade').value,start:$('start').value,run:$('run').value,tmax:$('tmax').value,rate:$('rate').value,manual:manual,steps:JSON.parse(JSON.stringify(S)),tot:$('tot').textContent};
+ const k=PR.findIndex(p=>p.name==n);if(k>=0){o.id=PR[k].id;PR[k]=o}else PR.unshift(o);
+ pstore();$('pname').value='';plist();push(o);alert('Saved')}
+function pload(id){const p=PR.find(x=>x.id==id);if(!p)return;
+ $('fab').value=p.fab;$('gsm').value=p.gsm;$('shade').value=p.shade;$('start').value=p.start;$('run').value=p.run;$('tmax').value=p.tmax;manual=p.manual;$('rate').value=p.rate;
+ S=JSON.parse(JSON.stringify(p.steps));sv(1);tab('calc')}
+function pdel(id){if(!confirm('Delete this process?'))return;PR=PR.filter(x=>x.id!=id);pstore();plist();push({id:id,del:1})}
+function plist(){$('svl').innerHTML=PR.length?PR.map(p=>`<div class="er"><b>${esc(p.name)}</b><div class="p">${esc(p.fab)} ${p.gsm} GSM • ${p.shade==90?'White':'Color'} • ${esc(p.tot)} • ${new Date(p.ts).toLocaleDateString()}</div><div class="bs"><button class="bt" onclick="pload('${p.id}')">Load</button><button class="bt" onclick="pdel('${p.id}')">Delete</button></div></div>`).join(''):'<div class="p">No saved processes yet.</div>'}
+function gcfg(){try{return JSON.parse(localStorage.getItem('dyeG'))||{}}catch(e){return {}}}
+function gsave(){try{localStorage.setItem('dyeG',JSON.stringify({url:$('gurl').value.trim(),key:$('gkey').value.trim()}))}catch(e){}msg('Settings saved')}
+function msg(t){$('svmsg').textContent=t}
+const BLK='Google sync is blocked on this page. Open the downloaded HTML file to sync.';
+async function push(o){const c=gcfg();if(!c.url)return;try{await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({key:c.key,action:o.del?'delete':'save',id:o.id,name:o.name,data:o})});msg('Saved to Google Sheet')}catch(e){msg(BLK)}}
+async function gsync(){const c=gcfg();if(!c.url){msg('Enter Script URL first');return}
+ try{const r=await fetch(c.url+(c.url.includes('?')?'&':'?')+'key='+encodeURIComponent(c.key));const j=await r.json();if(j.error){msg(j.error);return}
+ j.items.forEach(it=>{const k=PR.findIndex(p=>p.id==it.id);if(k<0)PR.push(it);else if(it.ts>PR[k].ts)PR[k]=it});
+ PR.sort((a,b)=>b.ts-a.ts);pstore();plist();
+ for(const p of PR){const m=j.items.find(i=>i.id==p.id);if(!m||p.ts>m.ts)await push(p)}
+ msg('Synced: '+PR.length+' processes')}catch(e){msg(BLK)}}
+plist();$('gurl').value=gcfg().url||'';$('gkey').value=gcfg().key||'';
+let GR;try{GR=JSON.parse(localStorage.getItem('dyeGrades'))}catch(e){}
+if(!Array.isArray(GR))GR=[{f:'Single Jersey',a:0,b:170,r:3},{f:'Single Jersey',a:171,b:195,r:2},{f:'Single Jersey',a:196,b:9999,r:1},{f:'Terry',a:0,b:250,r:3},{f:'Terry',a:251,b:9999,r:1.5},{f:'Fleece',a:0,b:9999,r:3}];
+function fabOpts(){const cur=$('fab').value;const names=[...new Set(GR.map(x=>x.f).filter(Boolean))];$('fab').innerHTML=names.map(n=>`<option>${esc(n)}</option>`).join('');if(names.includes(cur))$('fab').value=cur}
+function grender(){$('grl').innerHTML='<table><tr><th>Fabric name</th><th>GSM from</th><th>GSM to</th><th>°C/min</th><th class="no"></th></tr>'+GR.map((x,i)=>`<tr><td><input value="${esc(x.f)}" onchange="GR[${i}].f=this.value;gs()"></td><td><input type="number" value="${x.a}" oninput="GR[${i}].a=+this.value;gs()"></td><td><input type="number" value="${x.b}" oninput="GR[${i}].b=+this.value;gs()"></td><td><input type="number" step="0.1" value="${x.r}" oninput="GR[${i}].r=+this.value;gs()"></td><td class="no"><button class="bt" onclick="GR.splice(${i},1);gs(1)">✕</button></td></tr>`).join('')+'</table>'}
+function gs(re){try{localStorage.setItem('dyeGrades',JSON.stringify(GR))}catch(e){}manual=false;fabOpts();if(re)grender();calc()}
+function gadd(){GR.push({f:GR.length?GR[GR.length-1].f:'Fabric',a:0,b:9999,r:3});gs(1)}
+fabOpts();grender();
+function addSel(i){return `<select class="as" onchange="ins(${i},this.value)"><option value="">+ Add step here…</option>${P.map((p,j)=>`<option value="${j}">${p.n}</option>`).join('')}</select>`}
+function ins(i,j){if(j==='')return;S.splice(i+1,0,JSON.parse(JSON.stringify(P[+j])));sv(1)}
+const hm=m=>{m=Math.round(m);const h=Math.floor(m/60);return h?h+'h '+(m%60)+'m':m+'m'};
+const ck=x=>{x=Math.round(x)%1440;return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0')};
+function calc(){
+ if(!manual)$('rate').value=grade();
+ const rate=v('rate')||1,T=v('tmax'),sc=$('shade').value;
+ const sub=x=>(x||'').replace(/\{T\}/g,T).replace(/\{S\}/g,sc).replace(/\{H\}/g,H);
+ const d=s=>s.k=='fix'?(+s.m||0):s.k=='steam'?(T-80)/rate:s.k=='run'?v('run'):s.k=='hold'?(+s.m||0):s.k=='temp'?Math.abs(s.to-s.from)/(s.r||1)+(+s.x||0):(T-s.to)/(s.r||1)+(+s.x||0);
+ const [h,m]=($('start').value||'00:00').split(':');let t=h*60+ +m;const t0=t;
+ $('out').innerHTML=S.map((s,i)=>{H=s.h;const du=d(s),a=t;t+=du;
+  return `<div class="st"><b>${i+1}. ${sub(s.n)}${s.k=='steam'?' @ '+rate+'°C/min':''}</b><div class="t"><span>${ck(a)} → ${ck(t)}</span><span>${hm(du)}</span></div>${s.p?`<div class="p">∥ ${sub(s.p)} (operator does in parallel, no time added)</div>`:''}</div>`}).join('');
+ $('tot').textContent=hm(t-t0)+' • ends '+ck(t);
+ $('psum').textContent=$('fab').value+' '+$('gsm').value+' GSM • '+$('shade').selectedOptions[0].text+' • '+rate+'°C/min • Run '+$('run').value+' min';
+ $('sopt').innerHTML='<tr><th>#</th><th>Step</th><th>Parallel (operator)</th></tr>'+S.map((s,i)=>(H=s.h,`<tr><td>${i+1}</td><td>${sub(s.n)}</td><td>${sub(s.p)}</td></tr>`)).join('');
+}
+$('rate').oninput=()=>{manual=true;calc()};
+['fab','gsm'].forEach(i=>$(i).oninput=()=>{manual=false;calc()});
+['shade','start','run','tmax'].forEach(i=>$(i).oninput=calc);
+edit();calc();
+</script></body></html>
