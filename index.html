@@ -113,7 +113,8 @@ function pload(id){const p=PR.find(x=>x.id==id);if(!p)return;
  S=JSON.parse(JSON.stringify(p.steps));sv(1);tab('calc')}
 function pdel(id){if(!confirm('Delete this process?'))return;PR=PR.filter(x=>x.id!=id);pstore();plist();push({id:id,del:1})}
 function plist(){$('svl').innerHTML=PR.length?PR.map(p=>`<div class="er"><b>${esc(p.name)}</b><div class="p">${esc(p.fab)} ${p.gsm} GSM • ${p.shade==90?'White':'Color'} • ${esc(p.tot)} • ${new Date(p.ts).toLocaleDateString()}</div><div class="bs"><button class="bt" onclick="pload('${p.id}')">Load</button><button class="bt" onclick="pdel('${p.id}')">Delete</button></div></div>`).join(''):'<div class="p">No saved processes yet.</div>'}
-function gcfg(){try{return JSON.parse(localStorage.getItem('dyeG'))||{}}catch(e){return {}}}
+const G_URL='https://script.google.com/macros/s/AKfycbyBw2vvvsksJSZmWo8Q0IjL9veyt22mJ02uqB_RwmVu35AgDwIy0b8f9rnRblXBrBry/exec',G_KEY='1234';
+function gcfg(){let c={};try{c=JSON.parse(localStorage.getItem('dyeG'))||{}}catch(e){}return {url:c.url||G_URL,key:c.key||G_KEY}}
 function gsave(){try{localStorage.setItem('dyeG',JSON.stringify({url:$('gurl').value.trim(),key:$('gkey').value.trim()}))}catch(e){}msg('Settings saved')}
 function msg(t){$('svmsg').textContent=t}
 const BLK='Google sync is blocked on this page. Open the downloaded HTML file to sync.';
@@ -131,7 +132,7 @@ function fabOpts(){const cur=$('fab').value;const names=[...new Set(GR.map(x=>x.
 function grender(){$('grl').innerHTML='<table><tr><th>Fabric name</th><th>GSM from</th><th>GSM to</th><th>°C/min</th><th class="no"></th></tr>'+GR.map((x,i)=>`<tr><td><input value="${esc(x.f)}" onchange="GR[${i}].f=this.value;gs()"></td><td><input type="number" value="${x.a}" oninput="GR[${i}].a=+this.value;gs()"></td><td><input type="number" value="${x.b}" oninput="GR[${i}].b=+this.value;gs()"></td><td><input type="number" step="0.1" value="${x.r}" oninput="GR[${i}].r=+this.value;gs()"></td><td class="no"><button class="bt" onclick="GR.splice(${i},1);gs(1)">✕</button></td></tr>`).join('')+'</table>'}
 function gs(re){try{localStorage.setItem('dyeGrades',JSON.stringify(GR))}catch(e){}manual=false;fabOpts();if(re)grender();calc()}
 function gadd(){GR.push({f:GR.length?GR[GR.length-1].f:'Fabric',a:0,b:9999,r:3});gs(1)}
-fabOpts();grender();
+fabOpts();grender();if(gcfg().url)gsync();
 function addSel(i){return `<select class="as" onchange="ins(${i},this.value)"><option value="">+ Add step here…</option>${P.map((p,j)=>`<option value="${j}">${p.n}</option>`).join('')}</select>`}
 function ins(i,j){if(j==='')return;S.splice(i+1,0,JSON.parse(JSON.stringify(P[+j])));sv(1)}
 const hm=m=>{m=Math.round(m);const h=Math.floor(m/60);return h?h+'h '+(m%60)+'m':m+'m'};
