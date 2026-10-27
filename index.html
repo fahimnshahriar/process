@@ -22,7 +22,7 @@ input,select{font:16px system-ui;padding:8px;border:1px solid var(--line);border
 table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}td,th{border:1px solid var(--line);padding:6px;text-align:left}table input{padding:5px;font-size:14px}th{background:var(--card)}
 .er{background:var(--card);border-radius:10px;padding:8px;margin-bottom:8px}.er .g{margin-top:6px}.bs{display:flex;gap:6px;margin-top:6px}.bs .bt{flex:1}.as{margin:0 0 8px;font-weight:600}
 [hidden]{display:none!important}.prt{display:none}#gr{margin:8px 0;color:var(--fg)}#gr svg{width:100%;height:auto;display:block;background:var(--card);border-radius:10px}
-.fh{font-size:13px;font-weight:700;color:var(--acc);margin:14px 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}.mvs{font-size:12px;padding:6px}
+.uh{font-size:15px;font-weight:700;margin:18px 0 2px;padding:6px 8px;background:var(--acc);color:#fff;border-radius:8px}.fh{font-size:13px;font-weight:700;color:var(--acc);margin:14px 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}.mvs{font-size:12px;padding:6px}
 @page{size:A4;margin:8mm}
 @media print{.scr{display:none}.prt{display:inline}html,body{background:#fff!important;color:#000!important}body{padding:0;max-width:none;font-size:9.5pt;line-height:1.2}:root{padding:0}
 h1{font-size:13pt;margin:0 0 3px}.tabs,#calc .g,.no{display:none!important}
@@ -52,7 +52,7 @@ h1{font-size:13pt;margin:0 0 3px}.tabs,#calc .g,.no{display:none!important}
 <div id="pnp" class="ps" style="font-weight:600"></div>
 <div id="gr"></div>
 <div id="out"></div>
-<div class="no"><h2>Save this process</h2><div class="g"><select id="pfolder"><option>Pretreatment &amp; enzyme</option><option selected>Dyeing</option><option>After treatment</option></select><input id="pname" placeholder="Process name"></div><button class="bt" style="width:100%;margin-top:8px" onclick="psave(false)">Save</button><button class="bt" style="width:100%;margin-top:6px" onclick="psave(true)">Save as…</button><div class="p" id="curl"></div></div>
+<div class="no"><h2>Save this process</h2><div class="g"><select id="punit"><option>Unit 1</option><option>Unit 2</option></select><select id="pfolder"><option>Pretreatment &amp; enzyme</option><option selected>Dyeing</option><option>After treatment</option></select><input id="pname" placeholder="Process name"></div><button class="bt" style="width:100%;margin-top:8px" onclick="psave(false)">Save</button><button class="bt" style="width:100%;margin-top:6px" onclick="psave(true)">Save as…</button><div class="p" id="curl"></div></div>
 </div>
 
 <div id="ed" hidden>
@@ -159,32 +159,33 @@ function libSteps(p){let lv=p.t0;const out=[];const mins=m=>(String(m).match(/\d
 function libTot(st){return st.reduce((a,s)=>a+(s.k=='hold'?+s.m:s.k=='mig'?Math.abs(s.mx-s.from)/s.up+(+s.m)+Math.abs(s.mx-s.to)/s.dn:Math.abs(s.to-s.from)/s.r+(+s.x||0)),0)}
 function hmm(m){m=Math.round(m);const h=Math.floor(m/60);return h?h+'h '+(m%60)+'m':m+'m'}
 function libNote(p,st){if(p.sub)return tc(p.sub);return 'Start '+p.t0+'°C. '+st.filter(x=>x.sh).map(x=>x.n+' '+x.m+'’').join(' → ')}
-function llib(id){const p=LIBD.find(x=>x.id==id);if(!p)return;CUR=null;S=libSteps(p);$('tmax').value=Math.max(p.t0,...S.map(s=>s.mx||s.to||s.h||0));$('pname').value=tc(p.title);$('pfolder').value='Dyeing';$('pnote').value=libNote(p,S);sv(1);curLabel();tab('calc')}
+function llib(id){const p=LIBD.find(x=>x.id==id);if(!p)return;CUR=null;S=libSteps(p);$('tmax').value=Math.max(p.t0,...S.map(s=>s.mx||s.to||s.h||0));$('pname').value=tc(p.title);$('punit').value='Unit 2';$('pfolder').value='Dyeing';$('pnote').value=libNote(p,S);sv(1);curLabel();tab('calc')}
 let H=0,PR=[];try{PR=JSON.parse(localStorage.getItem('dyeProcs'))||[]}catch(e){}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function pstore(){try{localStorage.setItem('dyeProcs',JSON.stringify(PR))}catch(e){}}
 let CUR=null;
-function curLabel(){const p=CUR&&PR.find(x=>x.id==CUR);$('curl').textContent=p?'Editing saved process: '+p.name+' ('+(p.folder||'Dyeing')+'). Save overwrites it, Save as makes a copy.':'New process, not saved yet. Enter a name and press Save or Save as.'}
+function curLabel(){const p=CUR&&PR.find(x=>x.id==CUR);$('curl').textContent=p?'Editing saved process: '+p.name+' ('+(p.unit||'Unit 1')+' > '+(p.folder||'Dyeing')+'). Save overwrites it, Save as makes a copy.':'New process, not saved yet. Enter a name and press Save or Save as.'}
 async function psave(asNew){let n=$('pname').value.trim();
  const cp=CUR&&PR.find(x=>x.id==CUR);
  if(asNew){n=prompt('Save as (new name):',cp&&n==cp.name?n+' copy':n);if(n===null)return;n=n.trim()}
  if(!n){alert('Enter a name');return}
- const o={id:Date.now().toString(36),name:n,ts:Date.now(),folder:$('pfolder').value,note:$('pnote').value,fab:$('fab').value,gsm:v('gsm'),shade:$('shade').value,start:$('start').value,run:$('run').value,tmax:$('tmax').value,rate:$('rate').value,manual:manual,steps:JSON.parse(JSON.stringify(S)),tot:$('tot').textContent};
+ const o={id:Date.now().toString(36),name:n,ts:Date.now(),unit:$('punit').value,folder:$('pfolder').value,note:$('pnote').value,fab:$('fab').value,gsm:v('gsm'),shade:$('shade').value,start:$('start').value,run:$('run').value,tmax:$('tmax').value,rate:$('rate').value,manual:manual,steps:JSON.parse(JSON.stringify(S)),tot:$('tot').textContent};
  let k=-1;
  if(!asNew&&cp){o.id=cp.id;k=PR.findIndex(x=>x.id==cp.id)}
- else{k=PR.findIndex(p=>p.name==n&&(p.folder||'Dyeing')==o.folder);if(k>=0){if(!confirm('"'+n+'" already exists in '+o.folder+'. Replace it?'))return;o.id=PR[k].id}}
+ else{k=PR.findIndex(p=>p.name==n&&(p.unit||'Unit 1')==o.unit&&(p.folder||'Dyeing')==o.folder);if(k>=0){if(!confirm('"'+n+'" already exists in '+o.unit+' > '+o.folder+'. Replace it?'))return;o.id=PR[k].id}}
  if(k>=0)PR[k]=o;else PR.unshift(o);
  CUR=o.id;$('pname').value=n;
  pstore();plist();curLabel();const rr=await push(o);alert(rr=='ok'?'Saved here and in Google Sheet':'Saved on this device only. '+rr)}
 const FOLD=['Pretreatment & enzyme','Dyeing','After treatment'];
-function pmove(id,f){const p=PR.find(x=>x.id==id);if(!p)return;p.folder=f;p.ts=Date.now();pstore();plist();push(p)}
+const UNITS_=['Unit 1','Unit 2'];
+function pmove(id,v){const p=PR.find(x=>x.id==id);if(!p)return;const a=v.split('|');p.unit=a[0];p.folder=a[1];p.ts=Date.now();pstore();plist();push(p)}
 function pload(id){const p=PR.find(x=>x.id==id);if(!p)return;CUR=p.id;$('pname').value=p.name;
- $('pfolder').value=p.folder||'Dyeing';$('fab').value=p.fab;$('gsm').value=p.gsm;$('shade').value=p.shade;$('start').value=p.start;$('run').value=p.run;$('tmax').value=p.tmax;manual=p.manual;$('rate').value=p.rate;$('pnote').value=p.note||'';
+ $('punit').value=p.unit||'Unit 1';$('pfolder').value=p.folder||'Dyeing';$('fab').value=p.fab;$('gsm').value=p.gsm;$('shade').value=p.shade;$('start').value=p.start;$('run').value=p.run;$('tmax').value=p.tmax;manual=p.manual;$('rate').value=p.rate;$('pnote').value=p.note||'';
  S=JSON.parse(JSON.stringify(p.steps));sv(1);curLabel();tab('calc')}
 function pdel(id){if(!confirm('Delete this process?'))return;PR=PR.filter(x=>x.id!=id);if(CUR==id)CUR=null;pstore();plist();curLabel();push({id:id,del:1})}
-function plist(){const card=p=>`<div class="er"><b>${esc(p.name)}</b><div class="p">${esc(p.fab)} ${p.gsm} GSM • ${p.shade==90?'White':'Color'} • ${esc(p.tot)} • ${new Date(p.ts).toLocaleDateString()}</div><div class="bs"><button class="bt" onclick="pload('${p.id}')">Load</button><select class="bt mvs" onchange="pmove('${p.id}',this.value)">${FOLD.map(f=>`<option${f==(p.folder||'Dyeing')?' selected':''}>${esc(f)}</option>`).join('')}</select><button class="bt" onclick="pdel('${p.id}')">Delete</button></div></div>`;
+function plist(){const card=p=>`<div class="er"><b>${esc(p.name)}</b><div class="p">${esc(p.fab)} ${p.gsm} GSM • ${p.shade==90?'White':'Color'} • ${esc(p.tot)} • ${new Date(p.ts).toLocaleDateString()}</div><div class="bs"><button class="bt" onclick="pload('${p.id}')">Load</button><select class="bt mvs" onchange="pmove('${p.id}',this.value)">${UNITS_.map(u=>FOLD.map(f=>`<option value="${u}|${f}"${(u==(p.unit||'Unit 1')&&f==(p.folder||'Dyeing'))?' selected':''}>${u} > ${esc(f)}</option>`).join('')).join('')}</select><button class="bt" onclick="pdel('${p.id}')">Delete</button></div></div>`;
  const lcard=p=>{const st=libSteps(p);return `<div class="er"><b>${esc(p.id)} – ${esc(tc(p.title.replace(/\s*-\s*\d+$/,'')))}</b><div class="p">Library • start ${p.t0}°C • ${st.length} steps • ${hmm(libTot(st))}${p.sub?' • '+esc(tc(p.sub)):''}</div><div class="bs"><button class="bt" onclick="llib('${p.id}')">Load</button></div></div>`};
- $('svl').innerHTML=FOLD.map(f=>{const l=PR.filter(p=>(FOLD.includes(p.folder)?p.folder:'Dyeing')==f),lb=f=='Dyeing'?LIBD:[];return `<div class="fh">📁 ${esc(f)} (${l.length+lb.length})</div>`+l.map(card).join('')+lb.map(lcard).join('')+(l.length||lb.length?'':'<div class="p">Empty</div>')}).join('')}
+ $('svl').innerHTML=UNITS_.map(u=>{const inU=PR.filter(p=>(p.unit||'Unit 1')==u),cnt=inU.length+(u=='Unit 2'?LIBD.length:0);return `<div class="uh">🏭 ${u} (${cnt})</div>`+FOLD.map(f=>{const l=inU.filter(p=>(FOLD.includes(p.folder)?p.folder:'Dyeing')==f),lb=(u=='Unit 2'&&f=='Dyeing')?LIBD:[];return `<div class="fh">📁 ${esc(f)} (${l.length+lb.length})</div>`+l.map(card).join('')+lb.map(lcard).join('')+(l.length||lb.length?'':'<div class="p">Empty</div>')}).join('')}).join('')}
 const G_URL='https://script.google.com/macros/s/AKfycbyh579ay_6hAKofZX-cSE9FhxZdd3OGuSxhzDgWzaomkyqRwQ49Ck2ho9CcUlSzFnhz/exec',G_KEY='1234';
 function gcfg(){let c={};try{c=JSON.parse(localStorage.getItem('dyeG'))||{}}catch(e){}return {url:c.url||G_URL,key:c.key||G_KEY}}
 function gsave(){try{localStorage.setItem('dyeG',JSON.stringify({url:$('gurl').value.trim(),key:$('gkey').value.trim()}))}catch(e){}msg('Settings saved')}
